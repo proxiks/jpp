@@ -1,0 +1,143 @@
+{
+  "J++ Hello World": {
+    "prefix": "jpp-hello",
+    "body": [
+      "#include <ios++>",
+      "",
+      "int main(){",
+      "    printel(\"Hello, J++!\\\\n\");",
+      "    return 0:",
+      "}"
+    ],
+    "description": "J++ Hello World program"
+  },
+  "J++ Kernel Main": {
+    "prefix": "jpp-kernel",
+    "body": [
+      "#include <kernel++>",
+      "",
+      "kernel void kernel_main() {",
+      "    printel(\"J++ Kernel v1.0\\\\n\");",
+      "",
+      "    // Initialize subsystems",
+      "    init_interrupts();",
+      "    init_timer(1000);",
+      "    init_keyboard();",
+      "    init_memory();",
+      "",
+      "    while (true) {",
+      "        hlt();",
+      "    }",
+      "}"
+    ],
+    "description": "J++ kernel main function"
+  },
+  "J++ Boot Entry": {
+    "prefix": "jpp-boot",
+    "body": [
+      "#include <kernel++>",
+      "",
+      "boot void _start() {",
+      "    // Setup stack",
+      "    asm volatile (\"mov \$0x200000, %rsp\");",
+      "",
+      "    // Clear BSS",
+      "    memset(&bss_start, 0, &bss_end - &bss_start);",
+      "",
+      "    // Initialize subsystems",
+      "    init_gdt();",
+      "    init_idt();",
+      "    init_paging();",
+      "",
+      "    // Jump to kernel main",
+      "    kernel_main();",
+      "",
+      "    // Should never reach here",
+      "    halt();",
+      "}"
+    ],
+    "description": "J++ boot entry point"
+  },
+  "J++ XDNA Kernel": {
+    "prefix": "jpp-xdna",
+    "body": [
+      "#include <kernel++>",
+      "#include <xdna++.h>",
+      "",
+      "aie_kernel void ${1:kernel_name}(",
+      "    xdna_l1 bfloat16 *A,",
+      "    xdna_l1 bfloat16 *B,",
+      "    xdna_l1 float32 *C,",
+      "    uint16 m, uint16 n, uint16 k",
+      ") {",
+      "    vmacc(C, A, B, m, n, k);",
+      "}"
+    ],
+    "description": "J++ XDNA AI Engine kernel"
+  },
+  "J++ For Loop": {
+    "prefix": "jpp-for",
+    "body": [
+      "for(int ${1:i} = ${2:0} < ${3:10})",
+      "    ${4:// body}"
+    ],
+    "description": "J++ shorthand for loop"
+  },
+  "J++ If-Else": {
+    "prefix": "jpp-if",
+    "body": [
+      "if(${1:condition}){",
+      "    ${2:// true}",
+      "} else {",
+      "    ${3:// false}",
+      "}"
+    ],
+    "description": "J++ if-else statement"
+  },
+  "J++ Inline ASM": {
+    "prefix": "jpp-asm",
+    "body": [
+      "asm volatile (",
+      "    \"${1:instruction}\"",
+      "    : \"${2:=r}\"(${3:output})",
+      "    : \"${4:r}\"(${5:input})",
+      "    : \"${6:memory}\"",
+      ");"
+    ],
+    "description": "J++ inline assembly block"
+  },
+  "J++ Struct": {
+    "prefix": "jpp-struct",
+    "body": [
+      "const struct(${1:Name}){",
+      "    ${2:// fields}",
+      "}"
+    ],
+    "description": "J++ struct definition"
+  },
+  "J++ Print": {
+    "prefix": "jpp-print",
+    "body": [
+      "printel(\"${1:format}\\n\"${2:, args});"
+    ],
+    "description": "J++ print statement"
+  },
+  "J++ Scan": {
+    "prefix": "jpp-scan",
+    "body": [
+      "scanel(\"${1:%d}\", ${2:variable});"
+    ],
+    "description": "J++ scan statement"
+  },
+  "J++ Timer": {
+    "prefix": "jpp-timer",
+    "body": [
+      "timer(${1:1} < ${2:100}){",
+      "    =(ps)",
+      "    (.entry)",
+      "    =(sec)",
+      "}"
+    ],
+    "description": "J++ timer block"
+  }
+}

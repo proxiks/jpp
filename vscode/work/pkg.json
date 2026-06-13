@@ -1,0 +1,17 @@
+{
+"name": "tree-sitter-jpp",
+  "version": "0.1.0",
+  "description": "Tree-sitter grammar for J++ programming language",
+  "main": "bindings/node",
+  "scripts": {
+    "generate": "tree-sitter generate",
+    "test": "tree-sitter test",
+    "build": "tree-sitter generate && node-gyp build"
+  },
+  "dependencies": {
+    "nan": "^2.17.0"
+  },
+  "devDependencies": {
+    "tree-sitter-cli": "^0.20.0"
+  }
+}

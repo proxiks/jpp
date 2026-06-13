@@ -1,0 +1,62 @@
+"""{
+  "name": "jpp-language",
+  "displayName": "J++ Language Support",
+  "description": "Syntax highlighting, snippets, and language support for J++",
+  "version": "0.1.0",
+  "publisher": "linuxab",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": ["Programming Languages", "Snippets"],
+  "keywords": ["jpp", "j++", "systems programming", "kernel", "npu"],
+  "activationEvents": [
+    "onLanguage:jpp"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "jpp",
+        "aliases": ["J++", "jpp"],
+        "extensions": [".jpp", ".j++"],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/jpp-icon.svg",
+          "dark": "./icons/jpp-icon.svg"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "jpp",
+        "scopeName": "source.jpp",
+        "path": "./syntaxes/jpp.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "jpp",
+        "path": "./snippets/jpp.json"
+      }
+    ],
+    "configuration": {
+      "title": "J++",
+      "properties": {
+        "jpp.compilerPath": {
+          "type": "string",
+          "default": "jppc",
+          "description": "Path to J++ compiler"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.60.0",
+    "typescript": "^4.4.0"
+  }
+}

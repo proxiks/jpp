@@ -1,0 +1,144 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "J++",
+  "scopeName": "source.jpp",
+  "fileTypes": [".jpp", ".j++"],
+  "patterns": [
+    { "include": "#preprocessor" },
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#functions" },
+    { "include": "#operators" },
+    { "include": "#asm" },
+    { "include": "#attributes" }
+  ],
+  "repository": {
+    "preprocessor": {
+      "patterns": [
+        {
+          "match": "^\\s*(#\\s*(include|define|undef|indef|ifndef|if|error|pragma|line))\\b",
+          "captures": {
+            "1": { "name": "keyword.control.preprocessor.jpp" },
+            "2": { "name": "keyword.control.preprocessor.directive.jpp" }
+          }
+        },
+        {
+          "match": "#\\s*include\\s+[<\"]([^>\"]+)[>\"]",
+          "captures": {
+            "0": { "name": "keyword.control.preprocessor.jpp" },
+            "1": { "name": "string.quoted.include.jpp" }
+          }
+        }
+      ]
+    },
+    "comments": {
+      "patterns": [
+        {
+          "match": "//.*$",
+          "name": "comment.line.double-slash.jpp"
+        },
+        {
+          "begin": "/\\*",
+          "end": "\\*/",
+          "name": "comment.block.jpp"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "match": "'([^'\\\\]|\\\\.)*'",
+          "name": "string.quoted.single.jpp"
+        },
+        {
+          "match": "\"([^\"\\\\]|\\\\.)*\"",
+          "name": "string.quoted.double.jpp"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "match": "\\b(0[xX][0-9a-fA-F]+|0[bB][01]+|0[oO][0-7]+|[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?)\\b",
+          "name": "constant.numeric.jpp"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "match": "\\b(boot|kernel|aie_kernel|shim_kernel|dma_buffer|tile_coord|xdna_l1|xdna_l2|xdna_l3|asm|volatile|const|struct|union|enum|typedef|static|extern|inline|return|if|else|for|while|do|goto|break|continue|switch|case|default|sizeof|typeof|offsetof|NUL|NULL|true|false|void|bool|char|short|int|long|float|double|unsigned|signed|string|ptr|auto|register)\\b",
+          "name": "keyword.control.jpp"
+        },
+        {
+          "match": "\\b(printel|scanel|outb|outw|outl|inb|inw|inl|memset|memcpy|memcmp|strlen|strcmp|strcpy|fopen|fclose|fread|fwrite|fscanf|fprintf|fgetc|fputc|fgets|fputs|fseek|ftell|rewind|malloc|free|dma_alloc|xdna_load_fw|xdna_wait_alive|xdna_dma_setup|xdna_dma_start|xdna_dma_wait|xdna_barrier_wait|hlt|halt|init_gdt|init_idt|init_paging|init_interrupts|init_timer|init_keyboard|init_memory|init_pci|init_smp|pci_read|pci_get_bar|vmacc|vmul|vadd|vshuffle|aie_load_v|aie_store_v|xdna_load_kernel|xdna_set_args|xdna_core_start|xdna_sem_acquire|xdna_sem_release|xdna_switch_config|xdna_error_detected|xdna_read_error|xdna_get_reg_dump|xdna_pause_context|xdna_read_counter|xdna_l1_alloc|xdna_l2_alloc|xdna_free|xdna_zero|timer)\\b",
+          "name": "support.function.jpp"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "match": "\\b(uint8|uint16|uint32|uint64|int8|int16|int32|int64|bfloat16|float32|float64|phys_addr|virt_addr|size_t|ssize_t|off_t|pid_t|tid_t|FILE|dma_desc|xdna_dma|xdna_stream_route|tile_coord|xdna_counter)\\b",
+          "name": "storage.type.jpp"
+        },
+        {
+          "match": "\\b(very long double|short inf|long double)\\b",
+          "name": "storage.type.jpp"
+        }
+      ]
+    },
+    "functions": {
+      "patterns": [
+        {
+          "match": "([a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=\\()",
+          "name": "entity.name.function.jpp"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "match": "(\\+\\+|--|\\+|-|\\*|/|%|<<|>>|&|\\||\\^|~|!|&&|\\|\\||=|\\+=|-=|\\*=|/=|%=|<<=|>>=|&=|\\|=|\\^=|==|!=|<=|>=|<|>|->|\\.|::|\\?|\\:)",
+          "name": "keyword.operator.jpp"
+        }
+      ]
+    },
+    "asm": {
+      "patterns": [
+        {
+          "begin": "\\basm\\s+volatile\\s*\\(",
+          "end": "\\);",
+          "name": "meta.asm.jpp",
+          "patterns": [
+            {
+              "match": "\"([^\"\\\\]|\\\\.)*\"",
+              "name": "string.quoted.double.asm.jpp"
+            },
+            {
+              "match": ":\\s*(\"[^\"]*\")",
+              "captures": {
+                "1": { "name": "string.quoted.double.asm-constraint.jpp" }
+              }
+            },
+            {
+              "match": "([a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=\\()",
+              "name": "entity.name.register.jpp"
+            }
+          ]
+        }
+      ]
+    },
+    "attributes": {
+      "patterns": [
+        {
+          "match": "\\b(boot|kernel|aie_kernel|shim_kernel|dma_buffer|tile_coord|xdna_l1|xdna_l2|xdna_l3)\\b(?=\\s+(uint8|uint16|uint32|uint64|int|void|bool|char|float|double|string|ptr|auto|struct|union|enum))",
+          "name": "storage.modifier.jpp"
+        }
+      ]
+    }
+  }
+}
