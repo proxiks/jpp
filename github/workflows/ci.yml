@@ -1,0 +1,232 @@
+name: J++ CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # ============================================================================
+  # BUILD & TEST
+  # ============================================================================
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: ['1.21', '1.22']
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ matrix.go-version }}
+    
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+    
+    - name: Download dependencies
+      run: go mod download
+    
+    - name: Build library
+      run: go build -v ./...
+    
+    - name: Run tests
+      run: go test -v -race -coverprofile=coverage.out ./...
+    
+    - name: Generate coverage report
+      run: go tool cover -html=coverage.out -o coverage.html
+    
+    - name: Upload coverage
+      uses: codecov/codecov-action@v3
+      with:
+        files: ./coverage.out
+        flags: unittests
+        name: codecov-umbrella
+
+  # ============================================================================
+  # LINT & FORMAT
+  # ============================================================================
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+    
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v3
+      with:
+        version: latest
+        args: --timeout=5m
+    
+    - name: Check formatting
+      run: |
+        if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+          echo "Please format Go code with gofmt"
+          gofmt -s -l .
+          exit 1
+        fi
+
+  # ============================================================================
+  # CROSS-PLATFORM BUILD
+  # ============================================================================
+  cross-build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [linux, windows, darwin]
+        arch: [amd64, arm64, 386]
+        exclude:
+          - os: darwin
+            arch: 386
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+    
+    - name: Build for ${{ matrix.os }}/${{ matrix.arch }}
+      env:
+        GOOS: ${{ matrix.os }}
+        GOARCH: ${{ matrix.arch }}
+      run: |
+        go build -v -o jpp-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }} ./cmd/jpp
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: jpp-${{ matrix.os }}-${{ matrix.arch }}
+        path: jpp-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
+
+  # ============================================================================
+  # ASSEMBLY TESTS
+  # ============================================================================
+  assembly-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install NASM
+      run: sudo apt-get update && sudo apt-get install -y nasm qemu-system-x86
+    
+    - name: Assemble bootloader
+      run: |
+        nasm -f bin boot.asm -o boot.bin
+        ls -la boot.bin
+    
+    - name: Assemble VM
+      run: |
+        nasm -f elf64 vm_asm.s -o vm_asm.o
+        ld vm_asm.o -o vm_asm
+        ./vm_asm || true
+    
+    - name: Test with QEMU
+      run: |
+        # Create disk image
+        dd if=/dev/zero of=disk.img bs=512 count=2880
+        dd if=boot.bin of=disk.img bs=512 count=1 conv=notrunc
+        # Run in QEMU (timeout after 5 seconds)
+        timeout 5 qemu-system-x86_64 -fda disk.img -boot a || true
+
+  # ============================================================================
+  # BENCHMARK
+  # ============================================================================
+  benchmark:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+    
+    - name: Run benchmarks
+      run: go test -bench=. -benchmem ./... | tee benchmark.txt
+    
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v3
+      with:
+        name: benchmark-results
+        path: benchmark.txt
+
+  # ============================================================================
+  # RELEASE
+  # ============================================================================
+  release:
+    needs: [build, cross-build]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+    
+    - name: Build release binaries
+      run: |
+        # Linux AMD64
+        GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o jpp-linux-amd64 ./cmd/jpp
+        # Linux ARM64
+        GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o jpp-linux-arm64 ./cmd/jpp
+        # Windows AMD64
+        GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o jpp-windows-amd64.exe ./cmd/jpp
+        # macOS AMD64
+        GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o jpp-darwin-amd64 ./cmd/jpp
+        # macOS ARM64
+        GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o jpp-darwin-arm64 ./cmd/jpp
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          jpp-linux-amd64
+          jpp-linux-arm64
+          jpp-windows-amd64.exe
+          jpp-darwin-amd64
+          jpp-darwin-arm64
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ============================================================================
+  # DOCKER BUILD
+  # ============================================================================
+  docker:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    
+    - name: Build Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: false
+        tags: jpp:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
