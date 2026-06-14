@@ -1,0 +1,194 @@
+-- jpp_memory.ads
+-- J++ Memory Manager - Written in Ada/SPARK
+-- Provides formally verified memory management for J++ runtime
+-- Author: Jatin (linuxab)
+-- Uses SPARK subset for formal verification
+
+with System;
+with Interfaces;
+
+package JPP_Memory with
+   SPARK_Mode,
+   Abstract_State => (Heap_State, Stack_State),
+   Initializes => (Heap_State, Stack_State)
+is
+
+   -- Types
+   type Size_T is new Interfaces.Unsigned_64;
+   type Address_T is new System.Address;
+   type Memory_Block is private;
+   
+   -- Memory regions (J++ specific)
+   type Memory_Region is (Kernel_Region, User_Region, DMA_Region, 
+                          XDNA_L1, XDNA_L2, XDNA_L3, Device_Region);
+   
+   -- Allocation strategies
+   type Alloc_Strategy is (First_Fit, Best_Fit, Worst_Fit, Buddy_System);
+   
+   -- Error codes
+   type Alloc_Error is (None, Out_Of_Memory, Invalid_Size, 
+                        Invalid_Alignment, Region_Full, Double_Free);
+   
+   -- Heap allocation (formally verified - no leaks, no use-after-free)
+   procedure Heap_Allocate
+     (Size      : in     Size_T;
+      Align     : in     Size_T;
+      Region    : in     Memory_Region;
+      Strategy  : in     Alloc_Strategy;
+      Block     :    out Memory_Block;
+      Error     :    out Alloc_Error)
+   with
+      Global => (In_Out => Heap_State),
+      Pre    => Size > 0 and then Align >= 1 and then 
+                (Align and (Align - 1)) = 0,  -- Power of 2 alignment
+      Post   => (if Error = None then Is_Valid(Block) else not Is_Valid(Block));
+   
+   -- Deallocation (proves no double-free)
+   procedure Heap_Deallocate
+     (Block : in out Memory_Block;
+      Error :    out Alloc_Error)
+   with
+      Global => (In_Out => Heap_State),
+      Pre    => Is_Valid(Block),
+      Post   => not Is_Valid(Block) and then Error = None;
+   
+   -- Reallocation
+   procedure Heap_Reallocate
+     (Block     : in out Memory_Block;
+      New_Size  : in     Size_T;
+      Error     :    out Alloc_Error)
+   with
+      Global => (In_Out => Heap_State),
+      Pre    => Is_Valid(Block) and then New_Size > 0,
+      Post   => (if Error = None then Is_Valid(Block) else Is_Valid(Block));
+   
+   -- Stack allocation (automatically freed on scope exit)
+   procedure Stack_Allocate
+     (Size  : in     Size_T;
+      Block :    out Memory_Block;
+      Error :    out Alloc_Error)
+   with
+      Global => (In_Out => Stack_State),
+      Pre    => Size > 0,
+      Post   => (if Error = None then Is_Valid(Block) else not Is_Valid(Block));
+   
+   procedure Stack_Deallocate
+     (Block : in out Memory_Block)
+   with
+      Global => (In_Out => Stack_State),
+      Pre    => Is_Valid(Block),
+      Post   => not Is_Valid(Block);
+   
+   -- DMA buffer allocation (contiguous, below 16MB for ISA)
+   procedure DMA_Allocate
+     (Size  : in     Size_T;
+      Block :    out Memory_Block;
+      Error :    out Alloc_Error)
+   with
+      Global => (In_Out => Heap_State),
+      Pre    => Size > 0 and then Size <= 16#1000000#,  -- 16MB max
+      Post   => (if Error = None then Is_Valid(Block) and then Is_Contiguous(Block) 
+                 else not Is_Valid(Block));
+   
+   -- XDNA NPU memory allocation (L1/L2/L3)
+   procedure XDNA_Allocate
+     (Size      : in     Size_T;
+      Mem_Level : in     Memory_Region;  -- XDNA_L1, XDNA_L2, XDNA_L3
+      Block     :    out Memory_Block;
+      Error     :    out Alloc_Error)
+   with
+      Global => (In_Out => Heap_State),
+      Pre    => Size > 0 and then 
+                (Mem_Level = XDNA_L1 or else Mem_Level = XDNA_L2 or else Mem_Level = XDNA_L3),
+      Post   => (if Error = None then Is_Valid(Block) else not Is_Valid(Block));
+   
+   -- Memory operations (proved no buffer overflows)
+   procedure Memory_Copy
+     (Dest   : in out Memory_Block;
+      Src    : in     Memory_Block;
+      Count  : in     Size_T;
+      Error  :    out Alloc_Error)
+   with
+      Global => null,
+      Pre    => Is_Valid(Dest) and then Is_Valid(Src) and then Count > 0 and then
+                Count <= Get_Size(Dest) and then Count <= Get_Size(Src),
+      Post   => Error = None;
+   
+   procedure Memory_Set
+     (Block : in out Memory_Block;
+      Value : in     Interfaces.Unsigned_8;
+      Count : in     Size_T;
+      Error :    out Alloc_Error)
+   with
+      Global => null,
+      Pre    => Is_Valid(Block) and then Count > 0 and then Count <= Get_Size(Block),
+      Post   => Error = None;
+   
+   procedure Memory_Zero
+     (Block : in out Memory_Block;
+      Error :    out Alloc_Error)
+   with
+      Global => null,
+      Pre    => Is_Valid(Block),
+      Post   => Error = None;
+   
+   -- Address translation (virtual <-> physical)
+   function To_Physical
+     (Virt_Addr : Address_T;
+      Block     : Memory_Block) return Address_T
+   with
+      Global => null,
+      Pre    => Is_Valid(Block),
+      Post   => To_Physical'Result /= Address_T'(System.Null_Address);
+   
+   function To_Virtual
+     (Phys_Addr : Address_T;
+      Block     : Memory_Block) return Address_T
+   with
+      Global => null,
+      Pre    => Is_Valid(Block),
+      Post   => To_Virtual'Result /= Address_T'(System.Null_Address);
+   
+   -- Queries
+   function Is_Valid(Block : Memory_Block) return Boolean with Global => null;
+   function Get_Size(Block : Memory_Block) return Size_T with Global => null, Pre => Is_Valid(Block);
+   function Get_Address(Block : Memory_Block) return Address_T with Global => null, Pre => Is_Valid(Block);
+   function Is_Contiguous(Block : Memory_Block) return Boolean with Global => null, Pre => Is_Valid(Block);
+   function Get_Region(Block : Memory_Block) return Memory_Region with Global => null, Pre => Is_Valid(Block);
+   
+   -- Garbage collection (optional, for user region)
+   procedure GC_Collect with
+      Global => (In_Out => Heap_State),
+      Post   => True;  -- GC may or may not free memory, but won't corrupt
+   
+   -- Memory statistics
+   procedure Get_Stats
+     (Total      : out Size_T;
+      Used       : out Size_T;
+      Free       : out Size_T;
+      Largest    : out Size_T;
+      Fragments  : out Natural)
+   with
+      Global => (Input => Heap_State),
+      Post   => Total = Used + Free;
+   
+private
+   
+   type Memory_Block is record
+      Address     : Address_T;
+      Size        : Size_T;
+      Region      : Memory_Region;
+      Is_Allocated : Boolean;
+      Is_Contiguous : Boolean;
+      Ref_Count   : Natural;
+   end record;
+   
+   Null_Block : constant Memory_Block := 
+     (Address => Address_T'(System.Null_Address),
+      Size    => 0,
+      Region  => Kernel_Region,
+      Is_Allocated => False,
+      Is_Contiguous => False,
+      Ref_Count => 0);
+   
+end JPP_Memory;

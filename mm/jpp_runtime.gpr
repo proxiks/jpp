@@ -1,0 +1,95 @@
+-- jpp_runtime.gpr
+-- J++ Runtime System - Ada/SPARK build file
+-- Author: Jatin (linuxab)
+
+project JPP_Runtime is
+   
+   for Source_Dirs use ("runtime/ada", "hardware");
+   for Object_Dir use "obj";
+   for Library_Dir use "lib";
+   for Library_Name use "jpp_runtime";
+   for Library_Kind use "static";
+   
+   -- Target platform
+   type Target_Type is ("x86_64", "arm64", "riscv64", "bare_metal");
+   Target : Target_Type := external ("JPP_TARGET", "x86_64");
+   
+   -- Build mode
+   type Build_Mode is ("debug", "release", "profile", "coverage");
+   Mode : Build_Mode := external ("JPP_BUILD_MODE", "debug");
+   
+   -- SPARK verification level
+   type SPARK_Level is ("none", "stone", "bronze", "silver", "gold");
+   Spark : SPARK_Level := external ("JPP_SPARK", "silver");
+   
+   -- Compiler settings
+   package Compiler is
+      case Mode is
+         when "debug" =>
+            for Default_Switches ("Ada") use (
+               "-g",           -- Debug info
+               "-O0",          -- No optimization
+               "-gnata",       -- Enable assertions
+               "-gnatwa",      -- All warnings
+               "-gnaty",       -- Style checks
+               "-gnat2022"     -- Ada 2022
+            );
+         when "release" =>
+            for Default_Switches ("Ada") use (
+               "-O3",          -- Full optimization
+               "-gnatp",       -- Suppress checks
+               "-flto",        -- Link-time optimization
+               "-gnat2022"
+            );
+         when others =>
+            for Default_Switches ("Ada") use ("-g", "-O2", "-gnat2022");
+      end case;
+      
+      -- SPARK mode for memory manager
+      for Default_Switches ("Ada") use Compiler'Default_Switches ("Ada") & 
+         ("--gnatprove");
+   end Compiler;
+   
+   -- Binder settings
+   package Binder is
+      for Default_Switches ("Ada") use ("-Es");
+   end Binder;
+   
+   -- Linker settings
+   package Linker is
+      case Target is
+         when "bare_metal" =>
+            for Default_Switches ("Ada") use ("-nostdlib", "-Tlinker.ld");
+         when others =>
+            null;
+      end case;
+   end Linker;
+   
+   -- GNATprove (SPARK verification)
+   package Prove is
+      case Spark is
+         when "none" =>
+            for Switches use ("--mode=check");
+         when "stone" =>
+            for Switches use ("--mode=check", "--level=0");
+         when "bronze" =>
+            for Switches use ("--mode=check_all", "--level=1");
+         when "silver" =>
+            for Switches use ("--mode=prove", "--level=2", "--checks");
+         when "gold" =>
+            for Switches use (
+               "--mode=prove", 
+               "--level=4",
+               "--checks",
+               "--counterexamples=on",
+               "--proof-warnings"
+            );
+      end case;
+   end Prove;
+   
+   -- Clean
+   package Clean is
+      for Switches use ("-r");
+   end Clean;
+   
+end JPP_Runtime;
