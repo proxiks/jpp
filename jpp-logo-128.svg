@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <!-- Blue gradient like C++ logo -->
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#5c8bc4;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#3a6ea5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1a3a6e;stop-opacity:1" />
+    </linearGradient>
+    <!-- Shadow for 3D effect -->
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="4" dy="4" stdDeviation="6" flood-color="#0a1a3a" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+  
+  <!-- Hexagon background -->
+  <polygon points="128,8 236,68 236,188 128,248 20,188 20,68" 
+           fill="url(#blueGrad)" 
+           filter="url(#shadow)"
+           stroke="#ffffff" 
+           stroke-width="3"/>
+  
+  <!-- Inner highlight for 3D effect -->
+  <polygon points="128,16 228,72 228,184 128,240 28,184 28,72" 
+           fill="none" 
+           stroke="#7aa8d8" 
+           stroke-width="2" 
+           opacity="0.5"/>
+  
+  <!-- White "Jpp" text -->
+  <text x="128" y="168" 
+        text-anchor="middle" 
+        font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" 
+        font-size="130" 
+        font-weight="700" 
+        fill="#ffffff"
+        letter-spacing="-6">Jpp</text>
+  
+  <!-- Small ++ superscript -->
+  <text x="205" y="95" 
+        text-anchor="middle" 
+        font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" 
+        font-size="42" 
+        font-weight="700" 
+        fill="#ffffff">++</text>
+</svg>
